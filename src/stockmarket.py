@@ -27,8 +27,20 @@ class Portfolio(object):
             cur = con.cursor()
             cur.execute("CREATE TABLE cash (double precision money);")
             cur.execute("INSERT INTO cash VALUES({start_amount});".format(start_amount=self.start_amount))
-            cur.execute("CREATE TABLE stocks (unique string token,int amount);")
+            cur.execute("CREATE TABLE stocks (string token,int amount);")
             cur.execute("CREATE TABLE transactions (primary key autoincrement int,string token,int amount,double precision aprice);")
+        except sql.Error as e:
+            raise e
+        finally:
+            if con:
+                con.close()
+
+    def get_cash(self):
+        try:
+            con = sql.connect(datafile(self.name))
+            cur = con.cursor()
+            cur.execute("SELECT money FROM cash;")
+            return cur.fetchone()[0]
         except sql.Error as e:
             raise e
         finally:
@@ -42,7 +54,7 @@ class Portfolio(object):
         try:
             con = sql.connect(datafile(self.name))
             cur = con.cursor()
-            cur.execute("SELECT * FROM stocks")
+            cur.execute("SELECT * FROM stocks;")
             return list(cur.fetchall())
         except sql.Error as e:
             raise e
@@ -57,17 +69,26 @@ class Portfolio(object):
         try:
             con = sql.connect(datafile(self.name))
             cur = con.cursor()
-            cur.execute("UPDATE stocks SET amount=(amount ?) WHERE token='?'",("%+d"%amount,abs(amount),token))
+            
+            int(amount) #making sure
+
+            cur.execute("SELECT count(*) FROM stocks WHERE token=?;")
+            if(cur.fetchone()[0]==0): #check if exists already, if not create it
+                cur.execute("INSERT INTO stocks VALUES ( ? , 0 );",(token,0))
+
+            aprice = Stockmarket.lookup([token,]) #check price
+            cur.execute("UPDATE cash SET money = ( money - {withdraw} );".format(withdraw=aprice*amount)) #draw cash
+            cur.execute("UPDATE stocks SET amount = ( amount {damount} ) WHERE token = ?;".format(damount="%+d"%amount),(abs(amount),token)) #get the stock
+        
         except sql.Error as e:
             raise e
         finally:
             if con:
                 con.close()
-        
 
     def current_value(self):
         stocks = zip(*self.get_stocks())
-        return self.cash + sum(starmap(operator.mul, izip( stocks[1], map(Stockmarket.lookup, stocks[0]))
+        return self.cash + sum(starmap(operator.mul, izip( stocks[1], map(Stockmarket.lookup, stocks[0]))))
 
 class Stockmarket(object):
 
@@ -96,4 +117,3 @@ class Stockmarket(object):
         pythonQuotes = map(lambda x: float(x['LastTradePriceOnly']), pythonQuotes)
         return pythonQuotes
 
-print Stockmarket.lookup(['AAPL','GOOG'])
