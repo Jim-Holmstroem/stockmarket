@@ -1,29 +1,73 @@
 import urllib2
 import json
-import sqlite3
+import sqlite3 as sql
 
 from itertools import *
 import operator
 
+import os.path
+
+def datafile(name):
+    return "../{name}.db".format(name=name)
+
 class Portfolio(object):
+    start_amount = 10000
+
     def __init__(self, name):
         self.name = name
+        if(not self.__has_database()):
+            self.__setup_database()
+
+    def __has_database(self):
+        return os.path.isfile(datafile(self.name))
+
+    def __setup_database(self):
+        try:
+            con = sql.connect(datafile(self.name))
+            cur = con.cursor()
+            cur.execute("CREATE TABLE cash (double precision money);")
+            cur.execute("INSERT INTO cash VALUES({start_amount});".format(start_amount=self.start_amount))
+            cur.execute("CREATE TABLE stocks (unique string token,int amount);")
+            cur.execute("CREATE TABLE transactions (primary key autoincrement int,string token,int amount,double precision aprice);")
+        except sql.Error as e:
+            raise e
+        finally:
+            if con:
+                con.close()
 
     def get_stocks(self):
         """
         {"tokens":['AAPL','GOOG'],"amount":[3,4]}
         """
-        return db.klsjdfjlksf 
+        try:
+            con = sql.connect(datafile(self.name))
+            cur = con.cursor()
+            cur.execute("SELECT * FROM stocks")
+            return list(cur.fetchall())
+        except sql.Error as e:
+            raise e
+        finally:
+            if con:
+                con.close()
 
-    def sell_stock(self,token,amount):
-        pass
-
-    def buy_stock(self):
-        pass
+    def update_stock(self,token,amount):
+        """
+        buy and sell (negative amount)
+        """
+        try:
+            con = sql.connect(datafile(self.name))
+            cur = con.cursor()
+            cur.execute("UPDATE stocks SET amount=(amount ?) WHERE token='?'",("%+d"%amount,abs(amount),token))
+        except sql.Error as e:
+            raise e
+        finally:
+            if con:
+                con.close()
+        
 
     def current_value(self):
-        stocks = self.get_stocks() 
-        return self.cash + sum(starmap(operator.mul, izip( stocks["amount"], map(Stockmarket.lookup, stocks["tokens"]))
+        stocks = zip(*self.get_stocks())
+        return self.cash + sum(starmap(operator.mul, izip( stocks[1], map(Stockmarket.lookup, stocks[0]))
 
 class Stockmarket(object):
 
