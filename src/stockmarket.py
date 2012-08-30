@@ -8,7 +8,7 @@ import operator
 import os.path
 
 def datafile(name):
-    return "../{name}.db".format(name=name)
+    return "../data/{name}.db".format(name=name)
 
 class Portfolio(object):
     start_amount = 10000
@@ -25,10 +25,10 @@ class Portfolio(object):
         try:
             con = sql.connect(datafile(self.name))
             cur = con.cursor()
-            cur.execute("CREATE TABLE cash (double precision money);")
+            cur.execute("CREATE TABLE cash (money DOUBLE PRECISION);")
             cur.execute("INSERT INTO cash VALUES({start_amount});".format(start_amount=self.start_amount))
-            cur.execute("CREATE TABLE stocks (string token,int amount);")
-            cur.execute("CREATE TABLE transactions (primary key autoincrement int,string token,int amount,double precision aprice);")
+            cur.execute("CREATE TABLE stocks (token VARCHAR(8) NOT NULL UNIQUE,amount INT);")
+            cur.execute("CREATE TABLE transactions (token VARCHAR(8) NOT NULL UNIQUE,amount INT,aprice DOUBLE PRECISION);")
         except sql.Error as e:
             raise e
         finally:
@@ -77,8 +77,8 @@ class Portfolio(object):
                 cur.execute("INSERT INTO stocks VALUES ( ? , 0 );",(token,0))
 
             aprice = Stockmarket.lookup([token,]) #check price
-            cur.execute("UPDATE cash SET money = ( money - {withdraw} );".format(withdraw=aprice*amount)) #draw cash
-            cur.execute("UPDATE stocks SET amount = ( amount {damount} ) WHERE token = ?;".format(damount="%+d"%amount),(abs(amount),token)) #get the stock
+            cur.execute("UPDATE cash SET money = ( money - ({withdraw}) );".format(withdraw=aprice*amount)) #draw cash
+            cur.execute("UPDATE stocks SET amount = ( amount + ({damount}) ) WHERE token = ?;".format(damount="%+d"%amount),(abs(amount),token)) #get the stock
         
         except sql.Error as e:
             raise e
@@ -100,8 +100,8 @@ class Stockmarket(object):
 
         try: 
             result = urllib2.urlopen(url)
-        except urllib2.HTTPError, e:        
-            print ("HTTP error: ", e.code)        
+        except urllib2.HTTPError, e:
+            print ("HTTP error: ", e.code)
         except urllib2.URLError, e:
             print ("Network error: ", e.reason)
            
@@ -116,4 +116,8 @@ class Stockmarket(object):
        
         pythonQuotes = map(lambda x: float(x['LastTradePriceOnly']), pythonQuotes)
         return pythonQuotes
+
+p = Portfolio("sofia")
+print p.get_stocks()
+print p.current_value()
 
