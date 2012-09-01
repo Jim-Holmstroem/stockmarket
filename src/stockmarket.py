@@ -49,7 +49,6 @@ class Portfolio(object):
         finally:
             if con:
                 con.close()
-
     def get_stocks(self):
         """
         {"tokens":['AAPL','GOOG'],"amount":[3,4]}
@@ -80,7 +79,9 @@ class Portfolio(object):
                 cur.execute("INSERT INTO stocks VALUES ( ? , ? );",(token,0))
             
             aprice = Stockmarket.lookup([token,])[0] #check price
-            cur.execute("UPDATE cash SET money = ( money - ({withdraw}) );".format(withdraw=aprice*amount)) #draw cash
+            price = aprice*amount
+            totalprice = (price,max(price+39,price*1.0015))[0<amount]
+            cur.execute("UPDATE cash SET money = ( money - ({withdraw}) );".format(withdraw=totalprice)) #draw cash
             cur.execute("UPDATE stocks SET amount = ( amount + ({damount}) ) WHERE token = ?;".format(damount=amount),(token,)) #get the stock
             
         except sql.Error, e:
@@ -142,14 +143,26 @@ class Stockmarket(object):
             print("lookup failed", e)
             raise e
 
-        
-p = Portfolio("sofia")
-print("stocks =",p.get_stocks())
-print(p.current_value())
-p.update_stock("GOOG",2)
-print("stocks =",p.get_stocks())
-print(p.current_value())
+def test():        
+    p = Portfolio("test")
+    
+    print("stocks =",p.get_stocks(),"/",p.get_cash())
+    print(p.current_value())
 
-p.update_stock("GOOG",-4)
-print("stocks =",p.get_stocks())
-print(p.current_value())
+    p.update_stock("GOOG",2)
+    print("stocks =",p.get_stocks(),"/",p.get_cash())
+    print(p.current_value())
+
+    p.update_stock("AAPL",2)
+    print("stocks =",p.get_stocks(),"/",p.get_cash())
+    print(p.current_value())
+
+    p.update_stock("AAPL",-2)
+    print("stocks =",p.get_stocks(),"/",p.get_cash())
+    print(p.current_value())
+
+    p.update_stock("GOOG",-2)
+    print("stocks =",p.get_stocks(),"/",p.get_cash())
+    print(p.current_value())
+
+test()
