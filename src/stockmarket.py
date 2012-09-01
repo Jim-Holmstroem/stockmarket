@@ -27,10 +27,23 @@ class Portfolio(object):
         try:
             con = sql.connect(datafile(self.name))
             cur = con.cursor()
-            cur.execute("CREATE TABLE cash (money DOUBLE PRECISION);")
-            cur.execute("INSERT INTO cash VALUES({start_amount});".format(start_amount=self.start_amount))
-            cur.execute("CREATE TABLE stocks (token VARCHAR(8) NOT NULL UNIQUE,amount INT);")
-            cur.execute("CREATE TABLE transactions (token VARCHAR(8) NOT NULL,amount INT,aprice DOUBLE PRECISION,total DOUBLE PRECISION);")
+            cur.execute(
+                    "CREATE TABLE cash (money DOUBLE PRECISION);"
+                    )
+            cur.execute(
+                    "INSERT INTO cash VALUES(?);",
+                    (self.start_amount,)
+                    )
+            cur.execute(
+                    "CREATE TABLE stocks (token VARCHAR(8) NOT NULL UNIQUE,amount INT);"
+                    )
+            cur.execute(
+                    "CREATE TABLE transactions (id INTEGER PRIMARY KEY AUTOINCREMENT,token VARCHAR(8) NOT NULL,amount INT,aprice DOUBLE PRECISION,total DOUBLE PRECISION);"
+                    )
+            cur.execute(
+                    "INSERT INTO transactions VALUES(null,?,?,?,?);",
+                    ("-", 0, 0.0, self.start_amount) #make an empty transaction as startingpoint
+                    )
         except sql.Error, e:
             raise e
         finally:
@@ -47,6 +60,18 @@ class Portfolio(object):
             cur = con.cursor()
             cur.execute("SELECT money FROM cash;")
             return cur.fetchone()[0]
+        except sql.Error, e:
+            raise e
+        finally:
+            if con:
+                con.close()
+
+    def get_transactions(self):
+        try:
+            con = sql.connect(datafile(self.name))
+            cur = con.cursor()
+            cur.execute("SELECT * FROM transactions;")
+            return list(cur.fetchall())
         except sql.Error, e:
             raise e
         finally:
@@ -76,17 +101,38 @@ class Portfolio(object):
             con = sql.connect(datafile(self.name))
             cur = con.cursor()
 
-            cur.execute("SELECT count(*) FROM stocks WHERE token=?;",(token,))
+            cur.execute(
+                    "SELECT count(*) FROM stocks WHERE token=?;",
+                    (token,)
+                    )
             if(cur.fetchone()[0]==0): #check if exists already, if not create it
-                cur.execute("INSERT INTO stocks VALUES ( ? , ? );",(token,0))
+                cur.execute(
+                        "INSERT INTO stocks VALUES(?,?);",
+                        (token,0)
+                        )
             
             total = self.get_value()
             aprice = Stockmarket.lookup([token,])[0] #check price
             price = aprice*amount
-            totalprice = (price,max(price+39,price*1.0015))[0<amount]
-            cur.execute("UPDATE cash SET money = ( money - ({withdraw}) );".format(withdraw=totalprice)) #draw cash
-            cur.execute("UPDATE stocks SET amount = ( amount + ({damount}) ) WHERE token = ?;".format(damount=amount),(token,)) #get the stock
-            cur.execute("INSERT INTO transactions (?,?,?,?);",(token,amount,aprice,total-totalprice))
+            totalprice = (
+                    price,
+                    max(
+                        price+39,
+                        price*1.0015
+                        )
+                    )[0<amount]
+            cur.execute(
+                    "UPDATE cash SET money = ( money - (?) );",
+                    (totalprice,)
+                    ) #draw cash
+            cur.execute(
+                    "UPDATE stocks SET amount = ( amount + (?) ) WHERE token = ?;",
+                    (amount,token)
+                    ) #get the stock
+            cur.execute(
+                    "INSERT INTO transactions VALUES(null,?,?,?,?);",
+                    (token,amount,aprice,total-totalprice)
+                    )
         except sql.Error, e:
             raise e
         finally:
@@ -181,7 +227,7 @@ class Commander(object):
         name   = self.current_portfolio.get_name()
         print("Name:`{name}`".format(name=name)) 
         print("="*16)
-        print(self.current_portfolio.get_stocks())
+        map(print, self.current_portfolio.get_stocks())
         print("="*16)
         print("Total value={value}".format(value=self.current_portfolio.get_value()))
 
@@ -204,43 +250,50 @@ class Commander(object):
         print("Current price:{price}.".format(price=Stockmarket.lookup([stock,])[0]))
 
     def history(self):
-        print("Should show the latest transaction history.")
-
+        history = self.current_portfolio.get_transactions()
+        map(print,history)
     def start(self):
         while(True):
             command=raw_input(">>").upper().split()
             if(len(command)==0):
                 continue
+            
             if(command[0]=="EXIT"):
                 if(len(command)==1):
                     self.exit()
                 else: 
                     print("Wrong number of arguments.")
+
             elif(command[0]=="OPEN"):
                 if(len(command)==2):
                     self.open(command[1])
                 else:
                     print("Wrong number of arguments.")
+
             elif(command[0]=="CLOSE"):
                 if(len(command)==1):
                     self.close()
                 else: 
                     print("Wrong number of arguments.")
+
             elif(command[0]=="VIEW"):
                 if(len(command)==1):
                     self.view()
                 else: 
                     print("Wrong number of arguments.")
+
             elif(command[0]=="BUY"):
                 if(len(command)==3):
                     self.buy(command[1], command[2])
                 else:
                     print("Wrong number of arguments.")
+
             elif(command[0]=="SELL"):
                 if(len(command)==3):
                     self.sell(command[1], command[2])
                 else: 
                     print("Wrong number of arguments.")
+
             elif(command[0]=="LOOKUP"):
                 if(len(command)==2):
                     self.lookup(command[1])
@@ -252,11 +305,13 @@ class Commander(object):
                     self.history()
                 else: 
                     print("Wrong number of arguments.")
+
             elif(command[0]=="HELP"):
                 if(len(command)==1):
                     self.help()
                 else: 
                     print("Wrong number of arguments.")
+
             else:
                 print("{command} is an unknown command.".format(command=command[0]))
 
