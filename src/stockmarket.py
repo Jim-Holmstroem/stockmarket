@@ -156,7 +156,8 @@ class Commander(object):
     def buy(self, stock, amount):
         if(amount>0):
             try:
-                self.current_portfolio.update_stock(stock, amount)
+                self.current_portfolio.update_stock(stock, int(amount))
+                print("Bought {amount} {stock} stocks.".format(stock,amount))
             except Exception, e:
                 print(e)
                 print("Error..")
@@ -166,7 +167,8 @@ class Commander(object):
     def sell(self, stock, amount):
        if(amount>0):
            try:
-               self.current_portfolio.update_stock(stock,-amount)
+               self.current_portfolio.update_stock(stock,-int(amount))
+               print("Sold {amount} {stock} stocks.".format(stock,amount))
            except Exception, e:
                print(e)
                print("Error..")
@@ -181,7 +183,7 @@ class Commander(object):
         print("="*16)
         print(self.current_portfolio.get_stocks())
         print("="*16)
-        print(self.current_portfolio.get_value())
+        print("Total value={value}".format(value=self.current_portfolio.get_value()))
 
     def open(self, name):
         if(self.current_portfolio is None):
@@ -202,20 +204,45 @@ class Commander(object):
         while(True):
             command=raw_input(">>").upper().split()
             if(command[0]=="EXIT"):
-                self.exit()
+                if(len(command)==1):
+                    self.exit()
+                else: 
+                    print("Wrong number of arguments.")
             elif(command[0]=="OPEN"):
-                self.open(command[1])
+                if(len(command)==2):
+                    self.open(command[1])
+                else:
+                    print("Wrong number of arguments.")
             elif(command[0]=="CLOSE"):
-                self.close()
+                if(len(command)==1):
+                    self.close()
+                else: 
+                    print("Wrong number of arguments.")
             elif(command[0]=="VIEW"):
-                self.view()
+                if(len(command)==1):
+                    self.view()
+                else: 
+                    print("Wrong number of arguments.")
             elif(command[0]=="BUY"):
-                self.buy(command[1], command[2])
+                if(len(command)==3):
+                    self.buy(command[1], command[2])
+                else:
+                    print("Wrong number of arguments.")
             elif(command[0]=="SELL"):
-                self.sell(command[1], command[2])
+                if(len(command)==3):
+                    self.sell(command[1], command[2])
+                else: 
+                    print("Wrong number of arguments.")
+            elif(command[0]=="HELP"):
+                if(len(command)==1):
+                    self.help()
+                else: 
+                    print("Wrong number of arguments.")
             else:
                 print("{command} is an unknown command.".format(command=command[0]))
-    
+
+    def help(self):
+        print("Need help?")
 
 def test():        
     p = Portfolio("test")
@@ -241,6 +268,5 @@ def test():
 
 #test()
 
-c=Commander()
-c.start()
+Commander().start()
 
