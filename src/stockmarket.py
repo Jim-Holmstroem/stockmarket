@@ -108,9 +108,9 @@ class Portfolio(object):
             if(cur.fetchone()[0]==0): #check if exists already, if not create it
                 cur.execute(
                         "INSERT INTO stocks VALUES(?,?);",
-                        (token,0)
+                        (token, 0)
                         )
-            
+
             total = self.get_value()
             aprice = Stockmarket.lookup([token,])[0] #check price
             price = aprice*amount
@@ -127,12 +127,14 @@ class Portfolio(object):
                     ) #draw cash
             cur.execute(
                     "UPDATE stocks SET amount = ( amount + (?) ) WHERE token = ?;",
-                    (amount,token)
+                    (amount, token)
                     ) #get the stock
+            con.commit()
             cur.execute(
                     "INSERT INTO transactions VALUES(null,strftime('%s','now'),?,?,?,?);",
-                    (token,amount,aprice,total-totalprice)
+                    (token, amount, aprice, self.get_cash())
                     )
+
         except sql.Error, e:
             raise e
         finally:
@@ -228,6 +230,7 @@ class Commander(object):
         print("="*16)
         map(print, self.current_portfolio.get_stocks())
         print("="*16)
+        print("Cash={cash}".format(cash=self.current_portfolio.get_cash()))
         print("Total value={value}".format(value=self.current_portfolio.get_value()))
 
     def open(self, name):
@@ -254,7 +257,7 @@ class Commander(object):
     def history(self):
         history = self.current_portfolio.get_transactions()
         map(print,history)
-   
+
     def start(self):
         while(True):
             command=raw_input(">>").upper().split()
