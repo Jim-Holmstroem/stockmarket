@@ -96,7 +96,7 @@ class Portfolio(object):
 
     def update_stock(self, token, amount):
         """
-        buy and sell (negative amount)
+        buy and sell(negative amount)
         """
         try:
             con = sql.connect(datafile(self.name))
@@ -122,6 +122,11 @@ class Portfolio(object):
                         price*1.0015
                         )
                     )[0<amount]
+            
+            if(amount>0 and totalprice>self.get_cash()):#bying and cash isn't enough
+                print("Not enough money, sorry.")
+                return
+
             cur.execute(
                     "UPDATE cash SET money = ( money - (?) );",
                     (totalprice,)
@@ -131,6 +136,7 @@ class Portfolio(object):
                     (amount, token)
                     ) #get the stock
             con.commit()
+            print("{what} {amount} {token} stocks.".format(what=("Bought","Sold")[amount<0],amount=amount,token=token))
             cur.execute(
                     "INSERT INTO transactions VALUES(null,strftime('%s','now'),?,?,?,?);",
                     (token, amount, aprice, self.get_cash())
@@ -205,18 +211,16 @@ class Commander(object):
         if(amount>0):
             try:
                 self.current_portfolio.update_stock(stock, int(amount))
-                print("Bought {amount} {stock} stocks.".format(amount=amount,stock=stock))
             except Exception, e:
                 print(e)
                 print("Error..")
         else:
             print("Amount needs to be positive.")
 
-    def sell(self, stock, amount):
+    def sell(self, stock, amount): #TODO change stock to token instead.
        if(amount>0):
            try:
                self.current_portfolio.update_stock(stock,-int(amount))
-               print("Sold {amount} {stock} stocks.".format(amount=amount,stock=stock))
            except Exception, e:
                print(e)
                print("Error..")
