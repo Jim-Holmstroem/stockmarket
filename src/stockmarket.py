@@ -106,11 +106,20 @@ class Portfolio(object):
                     "SELECT count(*) FROM stocks WHERE token=?;",
                     (token,)
                     )
+            
             if(cur.fetchone()[0]==0): #check if exists already, if not create it
                 cur.execute(
                         "INSERT INTO stocks VALUES(?,?);",
                         (token, 0)
                         )
+            cur.execute(
+                    "SELECT amount from stocks WHERE token=?;",
+                    (token,)
+                    )
+            stockcount=cur.fetchone()[0]
+            if(amount<0 and stockcount<abs(amount)):
+                print("You don't have that much stock to sell.")
+                return
 
             total = self.get_value()
             aprice = Stockmarket.lookup([token,])[0] #check price
@@ -136,7 +145,7 @@ class Portfolio(object):
                     (amount, token)
                     ) #get the stock
             con.commit()
-            print("{what} {amount} {token} stocks.".format(what=("Bought","Sold")[amount<0],amount=amount,token=token))
+            print("{what} {amount} {token} stocks.".format(what=("Bought","Sold")[amount<0],amount=abs(amount),token=token))
             cur.execute(
                     "INSERT INTO transactions VALUES(null,strftime('%s','now'),?,?,?,?);",
                     (token, amount, aprice, self.get_cash())
