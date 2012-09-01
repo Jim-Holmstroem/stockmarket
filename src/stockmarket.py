@@ -18,6 +18,7 @@ class Portfolio(object):
     def __init__(self, name):
         self.name = name
         if(not self.__has_database()):
+            print("Starting a new portfolio.")
             self.__setup_database()
 
     def __has_database(self):
@@ -252,7 +253,15 @@ class Commander(object):
         print("Current price:{price}.".format(price=Stockmarket.lookup([stock,])[0]))
     
     def help(self):
-        print("Need help?")
+        print("OPEN [name] - Open a portfolio.")
+        print("CLOSE - Close the current portfolio.")
+        print("VIEW - View the current portfolio.")
+        print("LOOKUP [stock] - Lookup the current price of a stock.")
+        print("BUY [stock] [amount] - Buy a given amount of a stock to current portfolio.")
+        print("SELL [stock] [amount] - Sell a given amount of a stock to current portfolio.")
+        print("HISTORY - Shows the latest transaction history in current portfolio.") 
+        print("HELP - Displays this help message.")
+        print("EXIT - Exits the program")
 
     def history(self):
         history = self.current_portfolio.get_transactions()
