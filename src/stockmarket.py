@@ -38,6 +38,9 @@ class Portfolio(object):
                 con.commit()
                 con.close()
 
+    def get_name(self):
+        return self.name
+
     def get_cash(self):
         try:
             con = sql.connect(datafile(self.name))
@@ -91,7 +94,7 @@ class Portfolio(object):
                 con.commit()
                 con.close()
 
-    def current_value(self):
+    def get_value(self):
         value = self.get_cash()
         stocks = zip(*self.get_stocks()) #transpose the stocks
 
@@ -143,26 +146,101 @@ class Stockmarket(object):
             print("lookup failed", e)
             raise e
 
+class Commander(object):
+
+    def __init__(self):
+        self.current_portfolio = None
+    def exit(self):
+        print("BYE!!1")
+        exit()
+    def buy(self, stock, amount):
+        if(amount>0):
+            try:
+                self.current_portfolio.update_stock(stock, amount)
+            except Exception, e:
+                print(e)
+                print("Error..")
+        else:
+            print("Amount needs to be positive.")
+
+    def sell(self, stock, amount):
+       if(amount>0):
+           try:
+               self.current_portfolio.update_stock(stock,-amount)
+           except Exception, e:
+               print(e)
+               print("Error..")
+       else:
+           print("Amount needs to be positive.")
+
+    def view(self):
+        stocks = self.current_portfolio.get_stocks()
+        cash   = self.current_portfolio.get_cash()
+        name   = self.current_portfolio.get_name()
+        print("Name:`{name}`".format(name=name)) 
+        print("="*16)
+        print(self.current_portfolio.get_stocks())
+        print("="*16)
+        print(self.current_portfolio.get_value())
+
+    def open(self, name):
+        if(self.current_portfolio is None):
+            self.current_portfolio = Portfolio(name) 
+            print("`{name}` open.".format(name=name))
+        else:
+            self.close()
+            self.open(name)
+
+    def close(self):
+        if(self.current_portfolio is not None):
+            print("Closing `{name}`.".format(name=self.current_portfolio.get_name()))
+            self.current_portfolio = None
+        else:
+            print("Nothing to close")
+
+    def start(self):
+        while(True):
+            command=raw_input(">>").upper().split()
+            if(command[0]=="EXIT"):
+                self.exit()
+            elif(command[0]=="OPEN"):
+                self.open(command[1])
+            elif(command[0]=="CLOSE"):
+                self.close()
+            elif(command[0]=="VIEW"):
+                self.view()
+            elif(command[0]=="BUY"):
+                self.buy(command[1], command[2])
+            elif(command[0]=="SELL"):
+                self.sell(command[1], command[2])
+            else:
+                print("{command} is an unknown command.".format(command=command[0]))
+    
+
 def test():        
     p = Portfolio("test")
     
     print("stocks =",p.get_stocks(),"/",p.get_cash())
-    print(p.current_value())
+    print(p.get_value())
 
     p.update_stock("GOOG",2)
     print("stocks =",p.get_stocks(),"/",p.get_cash())
-    print(p.current_value())
+    print(p.get_value())
 
     p.update_stock("AAPL",2)
     print("stocks =",p.get_stocks(),"/",p.get_cash())
-    print(p.current_value())
+    print(p.get_value())
 
     p.update_stock("AAPL",-2)
     print("stocks =",p.get_stocks(),"/",p.get_cash())
-    print(p.current_value())
+    print(p.get_value())
 
     p.update_stock("GOOG",-2)
     print("stocks =",p.get_stocks(),"/",p.get_cash())
-    print(p.current_value())
+    print(p.get_value())
 
-test()
+#test()
+
+c=Commander()
+c.start()
+
