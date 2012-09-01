@@ -38,10 +38,10 @@ class Portfolio(object):
                     "CREATE TABLE stocks (token VARCHAR(8) NOT NULL UNIQUE,amount INT);"
                     )
             cur.execute(
-                    "CREATE TABLE transactions (id INTEGER PRIMARY KEY AUTOINCREMENT,token VARCHAR(8) NOT NULL,amount INT,aprice DOUBLE PRECISION,total DOUBLE PRECISION);"
+                    "CREATE TABLE transactions (id INTEGER PRIMARY KEY AUTOINCREMENT,timestamp INT,token VARCHAR(8) NOT NULL,amount INT,aprice DOUBLE PRECISION,total DOUBLE PRECISION);"
                     )
             cur.execute(
-                    "INSERT INTO transactions VALUES(null,?,?,?,?);",
+                    "INSERT INTO transactions VALUES(null,strftime('%s','now'),?,?,?,?);",
                     ("-", 0, 0.0, self.start_amount) #make an empty transaction as startingpoint
                     )
         except sql.Error, e:
@@ -93,7 +93,7 @@ class Portfolio(object):
             if con:
                 con.close()
 
-    def update_stock(self,token,amount):
+    def update_stock(self, token, amount):
         """
         buy and sell (negative amount)
         """
@@ -130,7 +130,7 @@ class Portfolio(object):
                     (amount,token)
                     ) #get the stock
             cur.execute(
-                    "INSERT INTO transactions VALUES(null,?,?,?,?);",
+                    "INSERT INTO transactions VALUES(null,strftime('%s','now'),?,?,?,?);",
                     (token,amount,aprice,total-totalprice)
                     )
         except sql.Error, e:
@@ -193,7 +193,6 @@ class Stockmarket(object):
             raise e
 
 class Commander(object):
-
     def __init__(self):
         self.current_portfolio = None
     def exit(self):
@@ -203,7 +202,7 @@ class Commander(object):
         if(amount>0):
             try:
                 self.current_portfolio.update_stock(stock, int(amount))
-                print("Bought {amount} {stock} stocks.".format(stock,amount))
+                print("Bought {amount} {stock} stocks.".format(amount=amount,stock=stock))
             except Exception, e:
                 print(e)
                 print("Error..")
@@ -214,7 +213,7 @@ class Commander(object):
        if(amount>0):
            try:
                self.current_portfolio.update_stock(stock,-int(amount))
-               print("Sold {amount} {stock} stocks.".format(stock,amount))
+               print("Sold {amount} {stock} stocks.".format(amount=amount,stock=stock))
            except Exception, e:
                print(e)
                print("Error..")
@@ -248,10 +247,14 @@ class Commander(object):
 
     def lookup(self, stock):
         print("Current price:{price}.".format(price=Stockmarket.lookup([stock,])[0]))
+    
+    def help(self):
+        print("Need help?")
 
     def history(self):
         history = self.current_portfolio.get_transactions()
         map(print,history)
+   
     def start(self):
         while(True):
             command=raw_input(">>").upper().split()
@@ -314,9 +317,6 @@ class Commander(object):
 
             else:
                 print("{command} is an unknown command.".format(command=command[0]))
-
-    def help(self):
-        print("Need help?")
 
 def test():        
     p = Portfolio("test")
