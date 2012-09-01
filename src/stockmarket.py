@@ -31,7 +31,7 @@ class Portfolio(object):
             cur.execute("INSERT INTO cash VALUES({start_amount});".format(start_amount=self.start_amount))
             cur.execute("CREATE TABLE stocks (token VARCHAR(8) NOT NULL UNIQUE,amount INT);")
             cur.execute("CREATE TABLE transactions (token VARCHAR(8) NOT NULL UNIQUE,amount INT,aprice DOUBLE PRECISION);")
-        except sql.Error as e:
+        except sql.Error, e:
             raise e
         finally:
             if con:
@@ -44,7 +44,7 @@ class Portfolio(object):
             cur = con.cursor()
             cur.execute("SELECT money FROM cash;")
             return cur.fetchone()[0]
-        except sql.Error as e:
+        except sql.Error, e:
             raise e
         finally:
             if con:
@@ -59,7 +59,7 @@ class Portfolio(object):
             cur = con.cursor()
             cur.execute("SELECT * FROM stocks;")
             return list(cur.fetchall())
-        except sql.Error as e:
+        except sql.Error, e:
             raise e
         finally:
             if con:
@@ -83,7 +83,7 @@ class Portfolio(object):
             cur.execute("UPDATE cash SET money = ( money - ({withdraw}) );".format(withdraw=aprice*amount)) #draw cash
             cur.execute("UPDATE stocks SET amount = ( amount + ({damount}) ) WHERE token = ?;".format(damount=amount),(token,)) #get the stock
             
-        except sql.Error as e:
+        except sql.Error, e:
             raise e
         finally:
             if con:
@@ -93,8 +93,21 @@ class Portfolio(object):
     def current_value(self):
         value = self.get_cash()
         stocks = zip(*self.get_stocks()) #transpose the stocks
+
         if(stocks):
-            value += sum(starmap(operator.mul, izip( stocks[1], map(Stockmarket.lookup, stocks[0]))))
+            value+=sum(
+                    starmap(
+                    operator.mul,
+                    ( 
+                        zip(
+                            stocks[1],
+                            Stockmarket.lookup(
+                                stocks[0]
+                                )
+                            )
+                        )
+                    )
+                )
         return value
 
 class Stockmarket(object):
@@ -134,5 +147,9 @@ p = Portfolio("sofia")
 print("stocks =",p.get_stocks())
 print(p.current_value())
 p.update_stock("GOOG",2)
+print("stocks =",p.get_stocks())
+print(p.current_value())
+
+p.update_stock("GOOG",-4)
 print("stocks =",p.get_stocks())
 print(p.current_value())
