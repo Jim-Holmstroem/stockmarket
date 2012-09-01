@@ -30,7 +30,7 @@ class Portfolio(object):
             cur.execute("CREATE TABLE cash (money DOUBLE PRECISION);")
             cur.execute("INSERT INTO cash VALUES({start_amount});".format(start_amount=self.start_amount))
             cur.execute("CREATE TABLE stocks (token VARCHAR(8) NOT NULL UNIQUE,amount INT);")
-            cur.execute("CREATE TABLE transactions (token VARCHAR(8) NOT NULL UNIQUE,amount INT,aprice DOUBLE PRECISION);")
+            cur.execute("CREATE TABLE transactions (token VARCHAR(8) NOT NULL,amount INT,aprice DOUBLE PRECISION,total DOUBLE PRECISION);")
         except sql.Error, e:
             raise e
         finally:
@@ -52,6 +52,7 @@ class Portfolio(object):
         finally:
             if con:
                 con.close()
+
     def get_stocks(self):
         """
         {"tokens":['AAPL','GOOG'],"amount":[3,4]}
@@ -74,19 +75,18 @@ class Portfolio(object):
         try:
             con = sql.connect(datafile(self.name))
             cur = con.cursor()
-            
-            int(amount) #making sure
 
             cur.execute("SELECT count(*) FROM stocks WHERE token=?;",(token,))
             if(cur.fetchone()[0]==0): #check if exists already, if not create it
                 cur.execute("INSERT INTO stocks VALUES ( ? , ? );",(token,0))
             
+            total = self.get_value()
             aprice = Stockmarket.lookup([token,])[0] #check price
             price = aprice*amount
             totalprice = (price,max(price+39,price*1.0015))[0<amount]
             cur.execute("UPDATE cash SET money = ( money - ({withdraw}) );".format(withdraw=totalprice)) #draw cash
             cur.execute("UPDATE stocks SET amount = ( amount + ({damount}) ) WHERE token = ?;".format(damount=amount),(token,)) #get the stock
-            
+            cur.execute("INSERT INTO transactions (?,?,?,?);",(token,amount,aprice,total-totalprice))
         except sql.Error, e:
             raise e
         finally:
@@ -198,11 +198,19 @@ class Commander(object):
             print("Closing `{name}`.".format(name=self.current_portfolio.get_name()))
             self.current_portfolio = None
         else:
-            print("Nothing to close")
+            print("Nothing to close.")
+
+    def lookup(self, stock):
+        print("Current price:{price}.".format(price=Stockmarket.lookup([stock,])[0]))
+
+    def history(self):
+        print("Should show the latest transaction history.")
 
     def start(self):
         while(True):
             command=raw_input(">>").upper().split()
+            if(len(command)==0):
+                continue
             if(command[0]=="EXIT"):
                 if(len(command)==1):
                     self.exit()
@@ -231,6 +239,17 @@ class Commander(object):
             elif(command[0]=="SELL"):
                 if(len(command)==3):
                     self.sell(command[1], command[2])
+                else: 
+                    print("Wrong number of arguments.")
+            elif(command[0]=="LOOKUP"):
+                if(len(command)==2):
+                    self.lookup(command[1])
+                else: 
+                    print("Wrong number of arguments.")
+
+            elif(command[0]=="HISTORY"):
+                if(len(command)==1):
+                    self.history()
                 else: 
                     print("Wrong number of arguments.")
             elif(command[0]=="HELP"):
