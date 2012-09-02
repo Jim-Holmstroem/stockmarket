@@ -182,29 +182,28 @@ class Stockmarket(object):
     @staticmethod
     def lookup(symbols):
         yql = "select LastTradePriceOnly from yahoo.finance.quotes where symbol in ('{params}')".format(params="','".join(symbols)) 
-                        
         url = "http://query.yahooapis.com/v1/public/yql?q={q}&format=json&env=http%3A%2F%2Fdatatables.org%2Falltables.env&callback=".format(q=urllib2.quote( yql ))
 
         try: 
             result = urllib2.urlopen(url)
             rawdata = result.read()
-            data = json.loads( rawdata )
-            jsonQuotes = data['query']['results']['quote']
+            data = json.loads(rawdata)
+            json_quotes = data['query']['results']['quote']
             
-            pythonQuotes = []
-            if type( jsonQuotes ) == type ( dict() ):
-                pythonQuotes.append( jsonQuotes )
+            python_quotes = []
+            if isinstance(json_quotes, dict):
+                python_quotes.append(json_quotes)
             else:
-                pythonQuotes = jsonQuotes
+                python_quotes = json_quotes
            
-            pythonQuotes = map(lambda x: float(x['LastTradePriceOnly']), pythonQuotes)
-            return pythonQuotes
+            python_quotes = map(lambda x: float(x['LastTradePriceOnly']), python_quotes)
+            return python_quotes
         
         except urllib2.HTTPError, e:
-            print("HTTP error: ", e.code)
+            print("HTTP error:", e.code)
             raise e
         except urllib2.URLError, e:
-            print("Network error: ", e.reason)
+            print("Network error:", e.reason)
             raise e
         except Exception, e:
             print("lookup failed", e)
