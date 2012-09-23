@@ -181,6 +181,7 @@ class Portfolio(object):
 class Stockmarket(object):
     @staticmethod
     def lookup(symbols):
+        assert(not isinstance(symbols, basestring))
         yql = "select LastTradePriceOnly from yahoo.finance.quotes where symbol in ('{params}')".format(params="','".join(symbols)) 
         url = "http://query.yahooapis.com/v1/public/yql?q={q}&format=json&env=http%3A%2F%2Fdatatables.org%2Falltables.env&callback=".format(q=urllib2.quote( yql ))
 
@@ -195,7 +196,7 @@ class Stockmarket(object):
                 python_quotes.append(json_quotes)
             else:
                 python_quotes = json_quotes
-           
+            
             python_quotes = map(lambda x: float(x['LastTradePriceOnly']), python_quotes)
             return python_quotes
         
@@ -208,6 +209,37 @@ class Stockmarket(object):
         except Exception, e:
             print("lookup failed", e)
             raise e
+    @staticmethod
+    def debug(symbols):
+        assert(not isinstance(symbols, basestring))
+        yql = "select * from yahoo.finance.quotes where symbol in ('{params}')".format(params="','".join(symbols)) 
+        url = "http://query.yahooapis.com/v1/public/yql?q={q}&format=json&env=http%3A%2F%2Fdatatables.org%2Falltables.env&callback=".format(q=urllib2.quote( yql ))
+
+        try: 
+            result = urllib2.urlopen(url)
+            rawdata = result.read()
+            data = json.loads(rawdata)
+            json_quotes = data['query']['results']['quote']
+            map(print, json_quotes.iteritems())
+            python_quotes = []
+            if isinstance(json_quotes, dict):
+                python_quotes.append(json_quotes)
+            else:
+                python_quotes = json_quotes
+            
+            python_quotes = map(lambda x: float(x['LastTradePriceOnly']), python_quotes)
+            return python_quotes
+        
+        except urllib2.HTTPError, e:
+            print("HTTP error:", e.code)
+            raise e
+        except urllib2.URLError, e:
+            print("Network error:", e.reason)
+            raise e
+        except Exception, e:
+            print("lookup failed", e)
+            raise e
+
 
 class Commander(object):
     def __init__(self):
@@ -265,7 +297,7 @@ class Commander(object):
         print("Current price:{price}.".format(price=Stockmarket.lookup([stock,])[0]))
     
     def help(self):
-        print("OPEN [name] - Open a portfolio.")
+        print("OPEN [name] - Open a portfolio.") 
         print("CLOSE - Close the current portfolio.")
         print("VIEW - View the current portfolio.")
         print("LOOKUP [stock] - Lookup the current price of a stock.")
@@ -366,5 +398,5 @@ def test():
 
 #test()
 
-Commander().start()
+#Commander().start()
 
