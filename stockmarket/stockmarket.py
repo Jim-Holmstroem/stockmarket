@@ -1,3 +1,4 @@
+
 from __future__ import print_function
 
 import urllib2
@@ -7,10 +8,24 @@ import sqlite3 as sql
 from itertools import *
 import operator
 
-import os.path
+import os
+
+def get_data_directory():
+    """gets the current directory, and creates it upon non-existance."""
+    directory = "{home}/.stockmarket/data".format(home=os.path.expanduser('~'))
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    return directory
+
+def printer(thing):
+    print(thing)
+    return thing
 
 def datafile(name):
-    return "~/.stockmarket/data/{name}.db".format(name=name)
+    return "{directory}/{name}.db".format(
+        directory=get_data_directory(), 
+        name=name
+    )
 
 class Portfolio(object):
     start_amount = 10000
@@ -26,27 +41,34 @@ class Portfolio(object):
 
     def __setup_database(self):
         try:
-            #TODO make directory if it dowsn't exist
-            con = sql.connect(datafile(self.name))
+            con = sql.connect(printer(datafile(self.name)))
+            print("got con")
             cur = con.cursor()
+            print("got cursor")
             cur.execute(
                     "CREATE TABLE cash (money DOUBLE PRECISION);"
                     )
+            print("created cash")
             cur.execute(
                     "INSERT INTO cash VALUES(?);",
                     (self.start_amount,)
                     )
+            print("inserted cash")
             cur.execute(
                     "CREATE TABLE stocks (token VARCHAR(8) NOT NULL UNIQUE,amount INT);"
                     )
+            print("created stocks")
             cur.execute(
                     "CREATE TABLE transactions (id INTEGER PRIMARY KEY AUTOINCREMENT,timestamp INT,token VARCHAR(8) NOT NULL,amount INT,aprice DOUBLE PRECISION,total DOUBLE PRECISION);"
                     )
+            print("created transactions")
             cur.execute(
                     "INSERT INTO transactions VALUES(null,strftime('%s','now'),?,?,?,?);",
                     ("-", 0, 0.0, self.start_amount) #make an empty transaction as startingpoint
                     )
-        except sql.Error, e:
+            print("inserted transaction")
+        except sql.Error as e:
+            print(e)
             raise e
         finally:
             if con:
@@ -314,7 +336,16 @@ class Commander(object):
 
     def start(self):
         while(True):
-            command=raw_input(">>").upper().split()
+            if(self.current_portfolio):
+                header = "{name}>> ".format(
+                    name=self.current_portfolio.get_name()
+                )
+            else:
+                header = ">> "
+            command=raw_input(
+                header
+            ).upper().split()
+
             if(len(command)==0):
                 continue
             
