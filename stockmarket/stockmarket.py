@@ -20,6 +20,7 @@ def get_data_directory():
     return directory
 
 def printer(thing):
+    """printer for debugging"""
     print(thing)
     return thing
 
@@ -43,34 +44,26 @@ class Portfolio(object):
 
     def __setup_database(self):
         try:
-            con = sql.connect(printer(datafile(self.name)))
-            print("got con")
+            con = sql.connect(datafile(self.name))
             cur = con.cursor()
-            print("got cursor")
             cur.execute(
                     "CREATE TABLE cash (money DOUBLE PRECISION);"
                     )
-            print("created cash")
             cur.execute(
                     "INSERT INTO cash VALUES(?);",
                     (self.start_amount,)
                     )
-            print("inserted cash")
             cur.execute(
                     "CREATE TABLE stocks (token VARCHAR(8) NOT NULL UNIQUE,amount INT);"
                     )
-            print("created stocks")
             cur.execute(
                     "CREATE TABLE transactions (id INTEGER PRIMARY KEY AUTOINCREMENT,timestamp INT,token VARCHAR(8) NOT NULL,amount INT,aprice DOUBLE PRECISION,total DOUBLE PRECISION);"
                     )
-            print("created transactions")
             cur.execute(
                     "INSERT INTO transactions VALUES(null,strftime('%s','now'),?,?,?,?);",
                     ("-", 0, 0.0, self.start_amount) #make an empty transaction as startingpoint
                     )
-            print("inserted transaction")
         except sql.Error as e:
-            print(e)
             raise e
         finally:
             if con:
