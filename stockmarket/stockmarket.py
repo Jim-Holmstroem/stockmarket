@@ -10,7 +10,7 @@ import operator
 import os.path
 
 def datafile(name):
-    return "../data/{name}.db".format(name=name)
+    return "~/.stockmarket/data/{name}.db".format(name=name)
 
 class Portfolio(object):
     start_amount = 10000
@@ -26,6 +26,7 @@ class Portfolio(object):
 
     def __setup_database(self):
         try:
+            #TODO make directory if it dowsn't exist
             con = sql.connect(datafile(self.name))
             cur = con.cursor()
             cur.execute(
@@ -398,5 +399,5 @@ def test():
 
 #test()
 
-#Commander().start()
+Commander().start()
 
