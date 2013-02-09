@@ -41,7 +41,6 @@ def weird_price(price):
     else:
         return False
 
-
 class Portfolio(object):
     start_amount = 10000
 
@@ -121,8 +120,7 @@ class Portfolio(object):
                 con.close()
 
     def get_stocks(self):
-        """
-        {"tokens":['AAPL','GOOG'],"amount":[3,4]}
+        """{"tokens":['AAPL','GOOG'],"amount":[3,4]}
         """
         try:
             con = sql.connect(datafile(self.name))
@@ -143,26 +141,30 @@ class Portfolio(object):
             cur = con.cursor()
 
             cur.execute(
-                    "SELECT count(*) FROM stocks WHERE token=?;",
-                    (token,)
-                    )
-            
-            if(cur.fetchone()[0]==0): #check if exists already, if not create it
+                "SELECT count(*) FROM stocks\
+                WHERE token=?;",
+                (token,)
+            )
+        
+            #creates new upon non-existence
+            if(cur.fetchone()[0]==0):
                 cur.execute(
-                        "INSERT INTO stocks VALUES(?,?);",
-                        (token, 0)
-                        )
+                    "INSERT INTO stocks\
+                    VALUES(?,?);",
+                    (token, 0)
+                )
             cur.execute(
-                    "SELECT amount from stocks WHERE token=?;",
-                    (token,)
-                    )
+                "SELECT amount from stocks\
+                WHERE token=?;",
+                (token,)
+            )
             stockcount=cur.fetchone()[0]
             if(amount<0 and stockcount<abs(amount)):
                 print("You don't have that much stock to sell.")
                 return
 
             total = self.get_value()
-            aprice = Stockmarket.lookup([token,])[0] #check price
+            aprice = Stockmarket.lookup([token,])[0]
             if(weird_price(aprice)):
                 return
             price = aprice*amount
@@ -171,26 +173,30 @@ class Portfolio(object):
                 0.0015*abs(price)
             )
             totalprice = price + courtage 
-            if(amount>0 and totalprice>self.get_cash()):#bying and cash isn't enough
+            if(amount>0 and totalprice>self.get_cash()):
                 print("Not enough money, sorry.")
                 return
             
             cur.execute(
-                    "UPDATE cash SET money = ( money - (?) );",
+                    "UPDATE cash\
+                    SET money = ( money - (?) );",
                     (totalprice,)
                     ) #draw cash
             cur.execute(
-                    "UPDATE stocks SET amount = ( amount + (?) ) WHERE token = ?;",
+                    "UPDATE stocks\
+                    SET amount = ( amount + (?) ) WHERE token = ?;",
                     (amount, token)
                     ) #get the stock
             con.commit()
             cur.execute(
-                    "INSERT INTO transactions VALUES(null,strftime('%s','now'),?,?,?,?);",
+                    "INSERT INTO transactions\
+                    VALUES(null, strftime('%s', 'now'), ?, ?, ?, ?);",
                     (token, amount, aprice, self.get_cash())
                     )
             con.commit()
             print(
-                "{what} {amount} {token}-stocks for {price} {courtage_sign} {courtage}".format(
+                "{what} {amount} {token}-stocks\
+                for {price} {courtage_sign} {courtage}".format(
                     what=("Bought", "Sold")[ amount<0 ], 
                     amount=abs(amount),
                     token=token,
@@ -212,7 +218,7 @@ class Portfolio(object):
 
     def get_value(self):
         value = self.get_cash()
-        stocks = zip(*self.get_stocks()) #transpose the stocks
+        stocks = zip(*self.get_stocks()) #transpose
 
         if(stocks):
             value+=sum(
@@ -234,8 +240,22 @@ class Stockmarket(object):
     @staticmethod
     def lookup(symbols):
         assert(not isinstance(symbols, basestring))
-        yql = "select LastTradePriceOnly from yahoo.finance.quotes where symbol in ('{params}')".format(params="','".join(symbols)) 
-        url = "http://query.yahooapis.com/v1/public/yql?q={q}&format=json&env=http%3A%2F%2Fdatatables.org%2Falltables.env&callback=".format(q=urllib2.quote( yql ))
+        yql = "select LastTradePriceOnly\
+              from yahoo.finance.quotes \
+              where symbol in ('{params}')".format(
+            params="','".join(
+                symbols
+            )
+        ) 
+        url = (
+            "http://query.yahooapis.com/v1/public/"+\
+            "yql?q={q}&format=json&env="+\
+            "http%3A%2F%2Fdatatables.org%2Falltables.env&callback="
+        ).format(
+            q=urllib2.quote(
+                yql
+            )
+        )
 
         try: 
             result = urllib2.urlopen(url)
