@@ -142,18 +142,15 @@ class Portfolio(object):
             total = self.get_value()
             aprice = Stockmarket.lookup([token,])[0] #check price
             price = aprice*amount
-            totalprice = (
-                    price,
-                    max(
-                        price+39,
-                        price*1.0015
-                        )
-                    )[0<amount]
-            
+            courtage = max(
+                39, 
+                0.0015*abs(price)
+            )
+            totalprice = price + courtage 
             if(amount>0 and totalprice>self.get_cash()):#bying and cash isn't enough
                 print("Not enough money, sorry.")
                 return
-
+            
             cur.execute(
                     "UPDATE cash SET money = ( money - (?) );",
                     (totalprice,)
@@ -163,12 +160,21 @@ class Portfolio(object):
                     (amount, token)
                     ) #get the stock
             con.commit()
-            print("{what} {amount} {token} stocks.".format(what=("Bought","Sold")[amount<0],amount=abs(amount),token=token))
             cur.execute(
                     "INSERT INTO transactions VALUES(null,strftime('%s','now'),?,?,?,?);",
                     (token, amount, aprice, self.get_cash())
                     )
-
+            con.commit()
+            print(
+                "{what} {amount} {token}-stocks for {price}SEK {courtage_sign} {courtage}SEK".format(
+                    what=("Bought", "Sold")[ amount<0 ], 
+                    amount=abs(amount),
+                    token=token,
+                    price=abs(price),
+                    courtage_sign=("+", "-")[ amount<0 ],
+                    courtage=courtage
+                )
+            )
         except sql.Error, e:
             raise e
         finally:
@@ -227,38 +233,7 @@ class Stockmarket(object):
         except Exception, e:
             print("lookup failed", e)
             raise e
-    @staticmethod
-    def debug(symbols):
-        assert(not isinstance(symbols, basestring))
-        yql = "select * from yahoo.finance.quotes where symbol in ('{params}')".format(params="','".join(symbols)) 
-        url = "http://query.yahooapis.com/v1/public/yql?q={q}&format=json&env=http%3A%2F%2Fdatatables.org%2Falltables.env&callback=".format(q=urllib2.quote( yql ))
-
-        try: 
-            result = urllib2.urlopen(url)
-            rawdata = result.read()
-            data = json.loads(rawdata)
-            json_quotes = data['query']['results']['quote']
-            map(print, json_quotes.iteritems())
-            python_quotes = []
-            if isinstance(json_quotes, dict):
-                python_quotes.append(json_quotes)
-            else:
-                python_quotes = json_quotes
-            
-            python_quotes = map(lambda x: float(x['LastTradePriceOnly']), python_quotes)
-            return python_quotes
-        
-        except urllib2.HTTPError, e:
-            print("HTTP error:", e.code)
-            raise e
-        except urllib2.URLError, e:
-            print("Network error:", e.reason)
-            raise e
-        except Exception, e:
-            print("lookup failed", e)
-            raise e
-
-
+    
 class Commander(object):
     def __init__(self):
         self.current_portfolio = None
