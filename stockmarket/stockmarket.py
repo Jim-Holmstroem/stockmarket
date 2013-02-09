@@ -477,7 +477,7 @@ class Commander(object):
             try:
                 commands[command](*arguments)
             except TypeError as tpe:
-                print("TPE:",tpe)
+                print(tpe)
             
 Commander().start()
 
