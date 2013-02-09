@@ -443,6 +443,17 @@ class Commander(object):
         )
 
     def start(self):
+        commands = {
+            "EXIT": self.exit,
+            "OPEN": self.open,
+            "CLOSE": self.close,
+            "VIEW": self.view,
+            "BUY": self.buy,
+            "SELL": self.sell,
+            "LOOKUP": self.lookup,
+            "HISTORY": self.history,
+            "HELP": self.help,
+        }
         while(True):
             if(self.current_portfolio):
                 header = "{name}>> ".format(
@@ -450,93 +461,23 @@ class Commander(object):
                 )
             else:
                 header = ">> "
-            command=raw_input(
+            data=raw_input(
                 header
             ).upper().split()
 
-            if(len(command)==0):
+            if(len(data)==0):
                 continue
-            
-            if(command[0]=="EXIT"):
-                if(len(command)==1):
-                    self.exit()
-                else: 
-                    print("Wrong number of arguments.")
+          
+            command = data[0]
+            arguments = data[1:]
 
-            elif(command[0]=="OPEN"):
-                if(len(command)==2):
-                    self.open(command[1])
-                else:
-                    print("Wrong number of arguments.")
-
-            elif(command[0]=="CLOSE"):
-                if(len(command)==1):
-                    self.close()
-                else: 
-                    print("Wrong number of arguments.")
-
-            elif(command[0]=="VIEW"):
-                if(len(command)==1):
-                    self.view()
-                else: 
-                    print("Wrong number of arguments.")
-
-            elif(command[0]=="BUY"):
-                if(len(command)==3):
-                    self.buy(command[1], command[2])
-                else:
-                    print("Wrong number of arguments.")
-
-            elif(command[0]=="SELL"):
-                if(len(command)==3):
-                    self.sell(command[1], command[2])
-                else: 
-                    print("Wrong number of arguments.")
-
-            elif(command[0]=="LOOKUP"):
-                if(len(command)==2):
-                    self.lookup(command[1])
-                else: 
-                    print("Wrong number of arguments.")
-
-            elif(command[0]=="HISTORY"):
-                if(len(command)==1):
-                    self.history()
-                else: 
-                    print("Wrong number of arguments.")
-
-            elif(command[0]=="HELP"):
-                if(len(command)==1):
-                    self.help()
-                else: 
-                    print("Wrong number of arguments.")
-
-            else:
+            if(not commands.has_key(command)):
                 print("{command} is an unknown command.".format(command=command[0]))
-
-def test():        
-    p = Portfolio("test")
-    
-    print("stocks =",p.get_stocks(),"/",p.get_cash())
-    print(p.get_value())
-
-    p.update_stock("GOOG",2)
-    print("stocks =",p.get_stocks(),"/",p.get_cash())
-    print(p.get_value())
-
-    p.update_stock("AAPL",2)
-    print("stocks =",p.get_stocks(),"/",p.get_cash())
-    print(p.get_value())
-
-    p.update_stock("AAPL",-2)
-    print("stocks =",p.get_stocks(),"/",p.get_cash())
-    print(p.get_value())
-
-    p.update_stock("GOOG",-2)
-    print("stocks =",p.get_stocks(),"/",p.get_cash())
-    print(p.get_value())
-
-#test()
-
+           
+            try:
+                commands[command](*arguments)
+            except TypeError as tpe:
+                print("TPE:",tpe)
+            
 Commander().start()
 
