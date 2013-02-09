@@ -11,6 +11,7 @@ from itertools import *
 import operator
 
 import os
+import time
 
 def get_data_directory():
     """gets the current directory, and creates it upon non-existance."""
@@ -29,6 +30,17 @@ def datafile(name):
         directory=get_data_directory(), 
         name=name
     )
+def price_renderer(price):
+    return ("%0.2f"%price).rjust(8,' ')+"SEK"
+
+def weird_price(price):
+    """Something is fishy with this stock."""
+    if(price<0.0001):
+        print("Something is fishy with this token, misspelling?")
+        return True
+    else:
+        return False
+
 
 class Portfolio(object):
     start_amount = 10000
@@ -47,22 +59,33 @@ class Portfolio(object):
             con = sql.connect(datafile(self.name))
             cur = con.cursor()
             cur.execute(
-                    "CREATE TABLE cash (money DOUBLE PRECISION);"
-                    )
+                "CREATE TABLE cash \
+                (money DOUBLE PRECISION);"
+                )
             cur.execute(
-                    "INSERT INTO cash VALUES(?);",
-                    (self.start_amount,)
-                    )
+                "INSERT INTO cash \
+                VALUES(?);",
+                (self.start_amount,)
+            )
             cur.execute(
-                    "CREATE TABLE stocks (token VARCHAR(8) NOT NULL UNIQUE,amount INT);"
-                    )
+                "CREATE TABLE stocks\
+                (token VARCHAR(8) NOT NULL UNIQUE, amount INT);"
+            )
             cur.execute(
-                    "CREATE TABLE transactions (id INTEGER PRIMARY KEY AUTOINCREMENT,timestamp INT,token VARCHAR(8) NOT NULL,amount INT,aprice DOUBLE PRECISION,total DOUBLE PRECISION);"
-                    )
+                "CREATE TABLE transactions \
+                (id INTEGER PRIMARY KEY AUTOINCREMENT,\
+                timestamp INT,\
+                token VARCHAR(8) NOT NULL,\
+                amount INT,\
+                aprice DOUBLE PRECISION,\
+                total DOUBLE PRECISION);"
+            )
+            #Empty transaction as startingpoint
             cur.execute(
-                    "INSERT INTO transactions VALUES(null,strftime('%s','now'),?,?,?,?);",
-                    ("-", 0, 0.0, self.start_amount) #make an empty transaction as startingpoint
-                    )
+                "INSERT INTO transactions \
+                VALUES(null, strftime('%s', 'now'), ?, ?, ?, ?);",
+                ("-", 0, 0.0, self.start_amount) 
+            )
         except sql.Error as e:
             raise e
         finally:
@@ -79,7 +102,7 @@ class Portfolio(object):
             cur = con.cursor()
             cur.execute("SELECT money FROM cash;")
             return cur.fetchone()[0]
-        except sql.Error, e:
+        except sql.Error as e:
             raise e
         finally:
             if con:
@@ -91,7 +114,7 @@ class Portfolio(object):
             cur = con.cursor()
             cur.execute("SELECT * FROM transactions;")
             return list(cur.fetchall())
-        except sql.Error, e:
+        except sql.Error as e:
             raise e
         finally:
             if con:
@@ -106,15 +129,14 @@ class Portfolio(object):
             cur = con.cursor()
             cur.execute("SELECT * FROM stocks;")
             return list(cur.fetchall())
-        except sql.Error, e:
+        except sql.Error as e:
             raise e
         finally:
             if con:
                 con.close()
 
     def update_stock(self, token, amount):
-        """
-        buy and sell(negative amount)
+        """Buy and sell(negative amount)
         """
         try:
             con = sql.connect(datafile(self.name))
@@ -141,6 +163,8 @@ class Portfolio(object):
 
             total = self.get_value()
             aprice = Stockmarket.lookup([token,])[0] #check price
+            if(weird_price(aprice)):
+                return
             price = aprice*amount
             courtage = max(
                 39, 
@@ -166,16 +190,20 @@ class Portfolio(object):
                     )
             con.commit()
             print(
-                "{what} {amount} {token}-stocks for {price}SEK {courtage_sign} {courtage}SEK".format(
+                "{what} {amount} {token}-stocks for {price} {courtage_sign} {courtage}".format(
                     what=("Bought", "Sold")[ amount<0 ], 
                     amount=abs(amount),
                     token=token,
-                    price=abs(price),
+                    price=price_renderer(
+                        abs(price)
+                    ),
                     courtage_sign=("+", "-")[ amount<0 ],
-                    courtage=courtage
+                    courtage=price_renderer(
+                        courtage
+                    )
                 )
             )
-        except sql.Error, e:
+        except sql.Error as e:
             raise e
         finally:
             if con:
@@ -224,85 +252,175 @@ class Stockmarket(object):
             python_quotes = map(lambda x: float(x['LastTradePriceOnly']), python_quotes)
             return python_quotes
         
-        except urllib2.HTTPError, e:
+        except urllib2.HTTPError as e:
             print("HTTP error:", e.code)
-            raise e
-        except urllib2.URLError, e:
+        except urllib2.URLError as e:
             print("Network error:", e.reason)
-            raise e
-        except Exception, e:
+        except Exception as e:
             print("lookup failed", e)
-            raise e
     
 class Commander(object):
     def __init__(self):
         self.current_portfolio = None
+        self.avaliable_options = [
+            self.open,
+            self.close,
+            self.view,
+            self.lookup,
+            self.buy,
+            self.sell,
+            self.history,
+            self.exit
+        ]
+
     def exit(self):
-        print("BYE!!1")
+        """EXIT - Exits the program"""
+        print(
+            "BYE!!1"
+        )
         exit()
-    def buy(self, stock, amount):
+
+    def buy(self, token, amount):
+        """BUY [token] [amount] - Buy a given amount of a stock ``token'' to current portfolio."""
         if(amount>0):
             try:
-                self.current_portfolio.update_stock(stock, int(amount))
-            except Exception, e:
-                print(e)
-                print("Error..")
+                self.current_portfolio.update_stock(
+                    token, 
+                    int(amount)
+                )
+            except Exception as e:
+                print("Error:", e)
         else:
             print("Amount needs to be positive.")
 
-    def sell(self, stock, amount): #TODO change stock to token instead.
-       if(amount>0):
-           try:
-               self.current_portfolio.update_stock(stock,-int(amount))
-           except Exception, e:
-               print(e)
-               print("Error..")
-       else:
-           print("Amount needs to be positive.")
+    def sell(self, token, amount):
+        """SELL [token] [amount] - Sell a given amount of a stock ``token'' to current portfolio."""
+        if(amount>0):
+            try:
+                self.current_portfolio.update_stock(
+                    token,
+                    -int(amount)
+                )
+            except Exception as e:
+                print("Error:",e)
+        else:
+            print("Amount needs to be positive.")
 
     def view(self):
+        """VIEW - View the current portfolio."""
         stocks = self.current_portfolio.get_stocks()
         cash   = self.current_portfolio.get_cash()
         name   = self.current_portfolio.get_name()
-        print("Name:`{name}`".format(name=name)) 
-        print("="*16)
-        map(print, self.current_portfolio.get_stocks())
-        print("="*16)
-        print("Cash={cash}".format(cash=self.current_portfolio.get_cash()))
-        print("Total value={value}".format(value=self.current_portfolio.get_value()))
+        print(
+            "Name:`{name}`".format(
+                name=name
+            )
+        ) 
+        print(
+            "="*16
+        )
+        map(
+            print, 
+            self.current_portfolio.get_stocks()
+        )
+        print(
+            "="*16
+        )
+        print(
+            "Cash={cash}".format(
+                cash=self.current_portfolio.get_cash()
+            )
+        )
+        print(
+            "Total value={value}".format(
+                value=self.current_portfolio.get_value()
+            )
+        )
 
     def open(self, name):
+        """OPEN [name] - Open a portfolio."""
         if(self.current_portfolio is None):
             self.current_portfolio = Portfolio(name) 
-            print("`{name}` open.".format(name=name))
+            print(
+                "`{name}` open.".format(
+                    name=name
+                )
+            )
         else:
             self.close()
             self.open(name)
 
     def close(self):
+        """CLOSE - Close the current portfolio."""
         if(self.current_portfolio is not None):
-            print("Closing `{name}`.".format(name=self.current_portfolio.get_name()))
+            print(
+                "Closing `{name}`.".format(
+                    name=self.current_portfolio.get_name()
+                )
+            )
             self.current_portfolio = None
         else:
-            print("Nothing to close.")
+            print(
+                "Nothing to close."
+            )
 
-    def lookup(self, stock):
-        print("Current price:{price}.".format(price=Stockmarket.lookup([stock,])[0]))
+    def lookup(self, token):
+        """LOOKUP [token] - Lookup the current price of a stock ``token''."""
+        aprice = Stockmarket.lookup(
+            [token,]
+        )[0]
+        if(weird_price(aprice)):
+            return
+        print(
+            "Current price: {aprice}.".format(
+                aprice=price_renderer(
+                    aprice
+                )
+            )
+        )
     
-    def help(self):
-        print("OPEN [name] - Open a portfolio.") 
-        print("CLOSE - Close the current portfolio.")
-        print("VIEW - View the current portfolio.")
-        print("LOOKUP [stock] - Lookup the current price of a stock.")
-        print("BUY [stock] [amount] - Buy a given amount of a stock to current portfolio.")
-        print("SELL [stock] [amount] - Sell a given amount of a stock to current portfolio.")
-        print("HISTORY - Shows the latest transaction history in current portfolio.") 
-        print("HELP - Displays this help message.")
-        print("EXIT - Exits the program")
-
     def history(self):
-        history = self.current_portfolio.get_transactions()
-        map(print,history)
+        """HISTORY - Shows the latest transaction history in current portfolio."""
+        def renderer(row):
+            return "{i}. {time}: {amount}*{token} a {aprice}. Cash={cash}.".format(
+                i=str(
+                    row[0]
+                ).rjust(3,' '),
+                time=time.ctime(
+                    row[1]
+                ),#localtime
+                token=(
+                    str(row[2]), 
+                    "START"
+                )[ row[2]=='-' ].ljust(9,' '),
+                amount=str(
+                    row[3]
+                ).rjust(4,' '),
+                aprice=price_renderer(
+                    row[4]
+                ),
+                cash=price_renderer(
+                    row[5]
+                ),
+            )
+
+        map(
+            print,
+            map(
+                renderer,
+                self.current_portfolio.get_transactions()
+            )
+        )
+
+    def help(self):
+        """HELP - Displays this help message."""
+        map(
+            print, 
+            map(
+                operator.attrgetter('__doc__'), 
+                self.avaliable_options
+            )
+        )
 
     def start(self):
         while(True):
