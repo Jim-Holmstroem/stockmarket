@@ -13,6 +13,9 @@ import operator
 import os
 import time
 
+CONCURRENCY = "SEK"
+COURTAGE = 39 #in CONCURRENCY
+
 def get_data_directory():
     """gets the current directory, and creates it upon non-existance."""
     directory = "{home}/.stockmarket/data".format(home=os.path.expanduser('~'))
@@ -31,7 +34,24 @@ def datafile(name):
         name=name
     )
 def price_renderer(price):
-    return ("%0.2f"%price).rjust(8,' ')+"SEK"
+    return "{price:>9.2f}{concurrency}".format(
+        price=price,
+        concurrency=CONCURRENCY
+    )
+
+def stock_renderer(stock):
+    return "{1:>4}*{0:<9}".format(*stock)
+
+def get_rate():
+    rate = Stockmarket.lookup(
+        ["USD{concurrency}=X".format(
+            concurrency=CONCURRENCY
+        ),]
+    )[0]
+    if(weird_price(rate)):
+        raise Exception("bad CONCURRENCY")
+    return rate
+
 
 def weird_price(price):
     """Something is fishy with this stock."""
@@ -60,7 +80,7 @@ class Portfolio(object):
             cur.execute(
                 "CREATE TABLE cash \
                 (money DOUBLE PRECISION);"
-                )
+            )
             cur.execute(
                 "INSERT INTO cash \
                 VALUES(?);",
@@ -136,6 +156,10 @@ class Portfolio(object):
     def update_stock(self, token, amount):
         """Buy and sell(negative amount)
         """
+        rate = get_rate()
+        aprice = Stockmarket.lookup( [token,] )[0] * rate
+        if(weird_price(aprice)):
+            return
         try:
             con = sql.connect(datafile(self.name))
             cur = con.cursor()
@@ -154,22 +178,18 @@ class Portfolio(object):
                     (token, 0)
                 )
             cur.execute(
-                "SELECT amount from stocks\
+                "SELECT amount FROM  stocks\
                 WHERE token=?;",
                 (token,)
             )
-            stockcount=cur.fetchone()[0]
+            stockcount = cur.fetchone()[0]
             if(amount<0 and stockcount<abs(amount)):
                 print("You don't have that much stock to sell.")
                 return
 
-            total = self.get_value()
-            aprice = Stockmarket.lookup([token,])[0]
-            if(weird_price(aprice)):
-                return
             price = aprice*amount
             courtage = max(
-                39, 
+                COURTAGE, 
                 0.0015*abs(price)
             )
             totalprice = price + courtage 
@@ -178,21 +198,21 @@ class Portfolio(object):
                 return
             
             cur.execute(
-                    "UPDATE cash\
-                    SET money = ( money - (?) );",
-                    (totalprice,)
-                    ) #draw cash
+                "UPDATE cash\
+                SET money = ( money - (?) );",
+                (totalprice,)
+            ) #draw cash
             cur.execute(
-                    "UPDATE stocks\
-                    SET amount = ( amount + (?) ) WHERE token = ?;",
-                    (amount, token)
-                    ) #get the stock
+                "UPDATE stocks\
+                SET amount = ( amount + (?) ) WHERE token = ?;",
+                (amount, token)
+            ) #get the stock
             con.commit()
             cur.execute(
-                    "INSERT INTO transactions\
-                    VALUES(null, strftime('%s', 'now'), ?, ?, ?, ?);",
-                    (token, amount, aprice, self.get_cash())
-                    )
+                "INSERT INTO transactions\
+                VALUES(null, strftime('%s', 'now'), ?, ?, ?, ?);",
+                (token, amount, aprice, self.get_cash())
+            )
             con.commit()
             print(
                 "{what} {amount} {token}-stocks\
@@ -219,22 +239,22 @@ class Portfolio(object):
     def get_value(self):
         value = self.get_cash()
         stocks = zip(*self.get_stocks()) #transpose
-
+        rate = get_rate()
         if(stocks):
-            value+=sum(
-                    starmap(
-                    operator.mul,
-                    ( 
-                        zip(
-                            stocks[1],
-                            Stockmarket.lookup(
-                                stocks[0]
-                                )
+            stocks_value = sum(
+                starmap(
+                operator.mul,
+                ( 
+                    zip(
+                        stocks[1],
+                        Stockmarket.lookup(
+                            stocks[0]
                             )
                         )
                     )
                 )
-        return value
+            )
+        return value + stocks_value*rate
 
 class Stockmarket(object):
     @staticmethod
@@ -269,7 +289,10 @@ class Stockmarket(object):
             else:
                 python_quotes = json_quotes
             
-            python_quotes = map(lambda x: float(x['LastTradePriceOnly']), python_quotes)
+            python_quotes = map(
+                lambda x: float(x['LastTradePriceOnly']), 
+                python_quotes
+            )
             return python_quotes
         
         except urllib2.HTTPError as e:
@@ -339,21 +362,25 @@ class Commander(object):
         print(
             "="*16
         )
+
         map(
             print, 
-            self.current_portfolio.get_stocks()
+            map(
+                stock_renderer,
+                self.current_portfolio.get_stocks()
+            )
         )
         print(
             "="*16
         )
         print(
-            "Cash={cash}".format(
-                cash=self.current_portfolio.get_cash()
+            " Cash={cash}".format(
+                cash=price_renderer(self.current_portfolio.get_cash())
             )
         )
         print(
-            "Total value={value}".format(
-                value=self.current_portfolio.get_value()
+            "Value={value}".format(
+                value=price_renderer(self.current_portfolio.get_value())
             )
         )
 
@@ -386,9 +413,10 @@ class Commander(object):
 
     def lookup(self, token):
         """LOOKUP [token] - Lookup the current price of a stock ``token''."""
+        rate = get_rate()
         aprice = Stockmarket.lookup(
             [token,]
-        )[0]
+        )[0]*rate
         if(weird_price(aprice)):
             return
         print(
@@ -402,7 +430,7 @@ class Commander(object):
     def history(self):
         """HISTORY - Shows the latest transaction history in current portfolio."""
         def renderer(row):
-            return "{i}. {time}: {amount}*{token} a {aprice}. Cash={cash}.".format(
+            return "{i}. {time}: {stock} a {aprice}. Cash={cash}.".format(
                 i=str(
                     row[0]
                 ).rjust(3,' '),
@@ -413,9 +441,15 @@ class Commander(object):
                     str(row[2]), 
                     "START"
                 )[ row[2]=='-' ].ljust(9,' '),
-                amount=str(
-                    row[3]
-                ).rjust(4,' '),
+                stock= stock_renderer( 
+                    (
+                        (
+                            row[2],
+                            "START"
+                        )[row[2]=='-'],
+                        row[3]
+                    ) 
+                ),
                 aprice=price_renderer(
                     row[4]
                 ),
