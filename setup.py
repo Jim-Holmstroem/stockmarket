@@ -8,7 +8,7 @@ except ImportError:
 config = {
     'description': 'Let\'s you trade stocks with i persistent portfolio.',
     'author': 'Jim Holmström <jimho@kth.se>',
-    'version': '0.5',
+    'version': '0.8',
     'install_requires':[],
     'packages': ['stockmarket'],
     'scripts': [],
