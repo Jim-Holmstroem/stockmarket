@@ -13,8 +13,8 @@ import operator
 import os
 import time
 
-CONCURRENCY = "SEK"
-COURTAGE = 39 #in CONCURRENCY
+CURRENCY = "SEK"
+COURTAGE = 39 #in CURRENCY
 
 def get_data_directory():
     """gets the current directory, and creates it upon non-existance."""
@@ -36,7 +36,7 @@ def datafile(name):
 def price_renderer(price):
     return "{price:>9.2f}{concurrency}".format(
         price=price,
-        concurrency=CONCURRENCY
+        concurrency=CURRENCY
     )
 
 def stock_renderer(stock):
@@ -45,11 +45,11 @@ def stock_renderer(stock):
 def get_rate():
     rate = Stockmarket.lookup(
         ["USD{concurrency}=X".format(
-            concurrency=CONCURRENCY
+            concurrency=CURRENCY
         ),]
     )[0]
     if(weird_price(rate)):
-        raise Exception("bad CONCURRENCY")
+        raise Exception("bad CURRENCY")
     return rate
 
 
