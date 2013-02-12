@@ -215,8 +215,7 @@ class Portfolio(object):
             )
             con.commit()
             print(
-                "{what} {amount} {token}-stocks\
-                for {price} {courtage_sign} {courtage}".format(
+                "{what} {amount} {token}-stocks for {price} {courtage_sign} {courtage}".format(
                     what=("Bought", "Sold")[ amount<0 ], 
                     amount=abs(amount),
                     token=token,
