@@ -300,10 +300,14 @@ class Stockmarket(object):
 
         try: 
             result = urlopen(url)
-            rawdata = result.readall().decode('utf-8')
+            rawdata = result.read().decode('utf-8')
             data = json.loads(rawdata)
+            
+            json_quotes_results = data['query']['results']
+            if(json_quotes_results is None):
+                raise Exception("Server not responding with result")
             json_quotes = data['query']['results']['quote']
-           
+
             python_quotes = []
             if isinstance(json_quotes, dict):
                 python_quotes.append(json_quotes)
