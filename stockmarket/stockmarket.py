@@ -2,8 +2,30 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
+try: #import to global scope is a must in this case
+    #Python 
+    from urllib.request import *
+    from urllib.error import *
+except ImportError as e:
+    from urllib2 import *
+try:
+    #Python 2
+    input=raw_input
+except:
+    pass
 
-import urllib2
+try:
+    unicode
+except NameError:
+    # Python 3
+    basestring = unicode = str
+
+try:
+    long
+except NameError:
+    # Python 3
+    long = int
+
 import json
 import sqlite3 as sql
 
@@ -238,7 +260,7 @@ class Portfolio(object):
 
     def get_value(self):
         value = self.get_cash()
-        stocks = zip(*self.get_stocks()) #transpose
+        stocks = list(zip(*self.get_stocks())) #transpose
         rate = get_rate()
         if(stocks):
             stocks_value = sum(
@@ -272,32 +294,32 @@ class Stockmarket(object):
             "yql?q={q}&format=json&env="+\
             "http%3A%2F%2Fdatatables.org%2Falltables.env&callback="
         ).format(
-            q=urllib2.quote(
+            q=quote(
                 yql
             )
         )
 
         try: 
-            result = urllib2.urlopen(url)
-            rawdata = result.read()
+            result = urlopen(url)
+            rawdata = result.readall().decode('utf-8')
             data = json.loads(rawdata)
             json_quotes = data['query']['results']['quote']
-            
+           
             python_quotes = []
             if isinstance(json_quotes, dict):
                 python_quotes.append(json_quotes)
             else:
                 python_quotes = json_quotes
             
-            python_quotes = map(
+            python_quotes = list(map(
                 lambda x: float(x['LastTradePriceOnly']), 
                 python_quotes
-            )
+            ))
             return python_quotes
         
-        except urllib2.HTTPError as e:
+        except HTTPError as e:
             print("HTTP error:", e.code)
-        except urllib2.URLError as e:
+        except URLError as e:
             print("Network error:", e.reason)
         except Exception as e:
             print("lookup failed", e)
@@ -325,11 +347,12 @@ class Commander(object):
 
     def buy(self, token, amount):
         """BUY [token] [amount] - Buy a given amount of a stock ``token'' to current portfolio."""
+        amount = int(amount)
         if(amount>0):
             try:
                 self.current_portfolio.update_stock(
                     token, 
-                    int(amount)
+                    amount
                 )
             except Exception as e:
                 print("Error:", e)
@@ -338,11 +361,12 @@ class Commander(object):
 
     def sell(self, token, amount):
         """SELL [token] [amount] - Sell a given amount of a stock ``token'' to current portfolio."""
+        amount = int(amount)
         if(amount>0):
             try:
                 self.current_portfolio.update_stock(
                     token,
-                    -int(amount)
+                    -amount
                 )
             except Exception as e:
                 print("Error:",e)
@@ -363,13 +387,13 @@ class Commander(object):
             "="*16
         )
 
-        map(
+        list(map(
             print, 
             map(
                 stock_renderer,
                 self.current_portfolio.get_stocks()
             )
-        )
+        ))
         print(
             "="*16
         )
@@ -458,23 +482,23 @@ class Commander(object):
                 ),
             )
 
-        map(
+        list(map(
             print,
             map(
                 renderer,
                 self.current_portfolio.get_transactions()
             )
-        )
+        ))
 
     def help(self):
         """HELP - Displays this help message."""
-        map(
+        list(map(
             print, 
             map(
                 operator.attrgetter('__doc__'), 
                 self.avaliable_options
             )
-        )
+        ))
 
     def start(self):
         commands = {
@@ -495,7 +519,7 @@ class Commander(object):
                 )
             else:
                 header = ">> "
-            data=raw_input(
+            data=input(
                 header
             ).upper().split()
 
@@ -505,7 +529,7 @@ class Commander(object):
             command = data[0]
             arguments = data[1:]
 
-            if(not commands.has_key(command)):
+            if(not command in commands):
                 print("{command} is an unknown command.".format(command=command[0]))
            
             try:
