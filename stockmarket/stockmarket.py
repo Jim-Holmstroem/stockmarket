@@ -275,6 +275,9 @@ class Portfolio(object):
                     )
                 )
             )
+        else:
+            stocks_value = 0
+
         return value + stocks_value*rate
 
 class Stockmarket(object):
